@@ -207,7 +207,7 @@ from django.db.models import (
     Avg,
     Count,
     Min,
-    Max
+    Max, Subquery, OuterRef
 )
 from typing import Any
 
@@ -263,3 +263,80 @@ from typing import Any
 # for obj in books_by_category:
 #     print(f"Категории: {obj['name_category']}, кол-во книг = {obj['books_count']}")
 #
+# from library.models import Borrow
+# from django.db.models import (Count, Q)
+#
+# data = Borrow.objects.values('member__username').annotate(
+#     count_aktiv_borrow=Count('id', filter=Q(returned=False))
+# ).order_by('-count_aktiv_borrow')[:5]  # 0 -4 index
+#
+#
+# print(data)
+
+
+from library.models import Borrow, User
+from django.db.models import (Count, Q)
+
+
+# 2 var
+# data = (
+#     Borrow.objects
+#     .filter(returned=False)
+#     .values('member__username')
+#     .annotate(borrows_cnt=Count('id'))
+#     .order_by('-borrows_cnt')
+# )[:5]
+#
+#
+# for item in data:
+#     print(item)
+#
+#
+# 3 var
+#
+# data = (
+#     User.objects
+#     .values('last_name', 'first_name')
+#     .annotate(
+#         borrows_count=Count(
+#             'borrows',
+#             filter=Q(borrows__returned=False)
+#         )
+#     )
+#     .order_by('-borrows_count')
+# )[:5]
+
+
+# ПОЛУЧИТЬ список книг цена которых выше срадней у того же автора
+
+from django.db.models import F
+
+subquery = (
+    Book.objects
+    .filter(author=OuterRef('author'))
+    .values('author')
+    .annotate(avg_price=Avg('price'))
+    .values('avg_price')
+)
+
+
+general_query = (
+    Book.objects
+    .annotate(avg_price_by_author=Subquery(subquery))
+    .filter(
+        price__gt=F('avg_price_by_author')
+    )
+)
+
+"""
+SELECT t1.*, (
+        SELECT Avg(t2.price) as avg_price
+        FROM books AS t2
+        WHERE t2.author_id = t1.author_id
+    ) AS avg_price_by_author
+FROM books as t1
+WHERE 
+    author_id = 1 AND
+    t1.price > avg_price_by_author
+;
+"""
