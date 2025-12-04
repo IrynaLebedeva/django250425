@@ -62,7 +62,7 @@ class BookViewSet(ModelViewSet):
         qs = self.get_queryset()
 
         qs = qs.filter(
-            contibutor=request.user
+            contributor=request.user
         )
 
         serializer = self.get_serializer(qs, many=True)
